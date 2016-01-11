@@ -1,18 +1,10 @@
 package minet.ui.misc;
 
-import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
-import java.awt.Graphics;
 import java.awt.Image;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Path;
 
-import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
@@ -26,7 +18,7 @@ public class BlobLabel extends JLabel
 	 * 
 	 */
 	private static final long serialVersionUID = -3808214299050510320L;
-    
+
 	public BlobLabel() {
         super();
         setVerticalAlignment(SwingConstants.TOP);
@@ -73,7 +65,7 @@ public class BlobLabel extends JLabel
         builder.append("</html>");
         setLayout(null);
         setText(builder.toString());
-        setSize(widthLimit, totalHeight);
+        setSize(widthLimit,Math.max(50, totalHeight));
         this.setIgnoreRepaint(true);
     }
     

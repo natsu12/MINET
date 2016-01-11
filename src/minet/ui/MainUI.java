@@ -21,6 +21,8 @@ import javax.swing.JTextPane;
 import java.awt.SystemColor;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.awt.Color;
@@ -52,8 +54,10 @@ public class MainUI extends JFrame {
 	private JLabel idLabel;
 	private JLabel helloTipsLabel;
 	private JTree tree;
-	private JButton sendButton;
+	private JButton sendButton; 
+	private JButton groupButton;
 	private String indentSpace;
+	private ArrayList<User> userlist;
 	
 	public JTree getTree()
     {
@@ -64,7 +68,11 @@ public class MainUI extends JFrame {
     {
         this.tree = tree;
     }
-
+    
+    public ArrayList<User> getUserList() 
+    {
+    	return userlist;
+    }
 
     public JLabel getHeadLabel()
     {
@@ -228,6 +236,7 @@ public class MainUI extends JFrame {
 		tree.setAutoscrolls(true);
 		
 		ArrayList<User> userList = new ArrayList<User>();
+		userlist = userList;
         tree.setVisibleRowCount(500);
        
        // tree.setMaximumSize(new Dimension(400, 600));
@@ -304,8 +313,22 @@ public class MainUI extends JFrame {
                 viewPane.setText("");
             }
         });
-		contentPane.add(clearButton);
 		
+		groupButton = new JButton("群聊发起");
+		groupButton.setBounds(430, 100, 90, 23);
+		/*groupButton.addActionListener(new ActionListener()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+            	//
+            	GroupChatUI groupchatui = new GroupChatUI(user); // 这里应该获取需要群聊用户的列表
+            	groupchatui.setVisible(true);
+            }
+        });*/
+		
+		contentPane.add(clearButton);
+		contentPane.add(groupButton);
 	}
 
 
@@ -313,4 +336,10 @@ public class MainUI extends JFrame {
     {
         return sendButton;
     }
+    
+    public JButton getGroupButton()
+    {
+        return groupButton;
+    }
+    
 }

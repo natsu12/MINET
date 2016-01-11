@@ -1,10 +1,10 @@
 package minet.main;
-import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +16,7 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.text.Normalizer.Form;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTree;
 import javax.swing.SwingWorker;
@@ -40,6 +39,8 @@ import common.datastruct.FileInfo;
 import common.datastruct.User;
 import minet.ui.LoginUI;
 import minet.ui.MainUI;
+import minet.ui.AddMemberUI;
+import minet.ui.GroupChatUI;
 import minet.ui.RegisterUI;
 import minet.ui.UserChatUI;
 import minet.ui.misc.FileOperation;
@@ -56,6 +57,8 @@ public class MinetClient {
     private ConcurrentHashMap<String, UserInfo> userIDMap;
     private LoginUI loginUI;
     private MainUI mainUI;
+    private GroupChatUI groupchatUI;
+    private AddMemberUI addmemberUI;
     private RegisterUI registerUI;
     private ConcurrentHashMap<String, UserChatUI> userUIs;
     private User me;
@@ -64,6 +67,7 @@ public class MinetClient {
     private boolean udpReged;
     private FileInfo fileInfo;
     private int tempTimeCount;
+    private ArrayList<User> listofuser = new ArrayList<User>();
   
     private class UserInfo {
         public User user;
@@ -152,12 +156,12 @@ public class MinetClient {
         	else if (fileInfo.getStat() == FileInfo.DONE) {
         	    tempTimeCount = 5;
         		String s = "文件 " + fileInfo.getFileName() + " 传输完毕";
-        		String id = fileInfo.getDstID();
         		mainUI.getHelloTipsLabel().setText(s);
         		
-        		if (fileInfo.getFileType() == "image") {
-        			String path = System.getProperty("user.dir") + "/images/" + fileInfo.getFileName();
-            		UserInfo userInfo = userIDMap.get(id);
+        		String id = fileInfo.getDstID();
+                if (fileInfo.getFileType() == "image") {
+                    String path = System.getProperty("user.dir") + "/images/" + fileInfo.getFileName();
+                    UserInfo userInfo = userIDMap.get(id);
                     String name = "UnKnown";
                     if (userInfo != null) {
                         name = userInfo.user.getName()  + " (" + id + ")";;
@@ -172,7 +176,7 @@ public class MinetClient {
                     }
                     chatUI.insertImg(name, path, tImg, false);
                     chatUI.setVisible(true);
-        		}
+                }
         		
         		fileInfo.reset();
         	}
@@ -246,6 +250,7 @@ public class MinetClient {
                                         }
                                         if (mainUI == null) {
 	                                        initMainUI(me);
+	                                        initGroupChatUI(me);
 	                                        regUDPAddr();
                                         }
                                     }
@@ -261,6 +266,7 @@ public class MinetClient {
                                     udpReged = true;
                                     if (mainUI != null) {
                                         mainUI.getIpLabel().setText(dataPackage.getAddress());
+                                        groupchatUI.getIpLabel().setText(dataPackage.getAddress());
                                     }
                                     break;
                                 case GlobalTypeDefine.TYPE_ONLINE_USER:
@@ -270,6 +276,41 @@ public class MinetClient {
                                     if (!userUIs.containsKey(user.getId())) {
                                         getChatUI(user);
                                         mainUI.addOnlineFriend(user);
+                                        listofuser.add(user);
+                                        //groupchatUI.addOnlineFriend(user);
+                                        groupchatUI.getAddMemButton().addActionListener(new ActionListener()
+                                        {
+                                            @Override
+                                            public void actionPerformed(ActionEvent e)
+                                            {
+                                            	//
+                                            	AddMemberUI addmemberui = new AddMemberUI(); // 这里应该获取需要群聊用户的列表
+                                            	addmemberui.setVisible(true);
+                                            	addmemberui.getButtonReg().addActionListener(new ActionListener() {
+                                					
+                                					@Override
+                                					public void actionPerformed(ActionEvent e) {
+                                						// TODO Auto-generated method stub
+                                						//System.out.println("hello");
+                                						groupchatUI.membername = addmemberui.getTextFieldName().getText();
+                                						addmemberui.getTextFieldID().setText("");
+                                						addmemberui.getTextFieldName().setText("");
+                                						addmemberui.setVisible(false);
+                                						if (listofuser != null) {
+                                							for (User user : listofuser) {
+                                								//System.out.println(groupchatUI.membername);
+                                    							//System.out.println(user.getName());
+                                                                if (user.getName().equals(groupchatUI.membername)) {
+                                                                	//System.out.println("yes");
+                                                                	groupchatUI.addOnlineFriend(user);
+                                                                	//System.out.println("yes");
+                                                                }
+                                                            }
+														}
+                                					}
+                                				});
+                                            }
+                                        });
                                     }
                                     break;
                                 case GlobalTypeDefine.TYPE_KICKED:
@@ -289,7 +330,12 @@ public class MinetClient {
                                     }
                                     break;
                                 case GlobalTypeDefine.TYPE_BOARDCAST:
-                                	doBoardCast(dataPackage); 
+                                	if (mainUI.getInputArea().getText().length() > groupchatUI.getInputArea().getText().length()) {
+                                		doBoardCast1(dataPackage);
+									}
+                                	else {
+                                		doBoardCast2(dataPackage);
+									}
                                     break;
                             }
                            
@@ -336,13 +382,13 @@ public class MinetClient {
                                     }
                                 	break;
                                 case GlobalTypeDefine.TYPE_IMG_SEND_REQUEST:
-                                	if (fileInfo.getStat() == FileInfo.FREE) {
-	                                	fileInfo.setQuerying();
-	                                	viewImgRequest(dataPackage);
-                                	} else {
+                                 	if (fileInfo.getStat() == FileInfo.FREE) {
+                                 		fileInfo.setQuerying();
+ 	                                	viewImgRequest(dataPackage);
+                                 	} else {
                                         refuseSendFile(dataPackage.getSrcId(), "对方正忙");
                                     }
-                                	break;
+                                 	break;
                                 case GlobalTypeDefine.TYPE_FILE_SEND_REFUSED:
                                     String id2 = dataPackage.getSrcId();
                                     String text2 = dataPackage.getMessageString();
@@ -376,7 +422,11 @@ public class MinetClient {
             timeout -= (endTime - startTime);
             startTime = endTime;
         }
+        
+        
     }
+    
+    
     
     private void sendCurrentFilePart(int index) {
     	DataPackage dp = fileInfo.getPackage(index);
@@ -441,7 +491,6 @@ public class MinetClient {
                 	 JFileChooser jfc=new JFileChooser();  
                      jfc.setFileSelectionMode(JFileChooser.FILES_ONLY); 
                      File file = new File(dp.getDstId());
-                     
                      jfc.setSelectedFile(file);
                      int flag = jfc.showSaveDialog(new JLabel());
                      file = null;
@@ -530,7 +579,6 @@ public class MinetClient {
         }
     }
     
-    
     private void requestFileData() {
   	  	ByteBuffer outBuffer = ByteBuffer.allocate(2048);
   	  	DataPackage dp = new DataPackage();
@@ -598,7 +646,7 @@ public class MinetClient {
          chatUI.setVisible(true);
     }
     
-    private void doBoardCast(DataPackage dataPackage) {
+    private void doBoardCast1(DataPackage dataPackage) {
     	String id = dataPackage.getSrcId();
         String text = dataPackage.getMessageString();
         UserInfo userInfo = userIDMap.get(id);
@@ -622,6 +670,35 @@ public class MinetClient {
                 tImg = smallIcons[idx];
             }
             mainUI.insertMessage(name, text, tImg, self);
+        }
+        
+   }
+    
+    private void doBoardCast2(DataPackage dataPackage) {
+    	String id = dataPackage.getSrcId();
+        String text = dataPackage.getMessageString();
+        UserInfo userInfo = userIDMap.get(id);
+        if (groupchatUI != null) {
+            String name = "UnKnown";
+            int idx = 0;
+            boolean self = false;
+            if (id.equals(me.getId())) {
+                name = me.getName() + " (" + id + ")";
+                idx = me.getIconIndex();
+                self = true;
+            }
+            else {
+                name = userInfo.user.getName() + " (" + id + ")";
+                idx = userInfo.user.getIconIndex();
+                
+            }
+            ImageIcon tImg = null;
+
+            if (idx >= 0 && idx < smallIcons.length) {
+                tImg = smallIcons[idx];
+            }
+            groupchatUI.insertMessage(name, text, tImg, self);
+            groupchatUI.setVisible(true);
         }
    }
    
@@ -652,6 +729,9 @@ public class MinetClient {
         }
         if (mainUI != null) {
             mainUI.deleteOnlineFriend(id);
+        }
+        if (groupchatUI != null) {
+        	groupchatUI.deleteOnlineFriend(id);
         }
     }
     
@@ -859,6 +939,29 @@ public class MinetClient {
             }
         });
         
+       //回车发送信息
+	   mainUI.getInputArea().addKeyListener(new KeyAdapter() 
+	   {
+	      public void keyPressed(KeyEvent e) {
+	      	if (KeyEvent.VK_ENTER == e.getKeyCode()) {
+	      		String text = mainUI.getInputText();
+                final SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+                    @Override
+                    protected String doInBackground() throws Exception
+                    {
+                        sendBoardCastMessage(text);
+                        return text;
+                    }      
+                    @Override
+                    protected void done() {
+                        mainUI.getInputArea().setText("");
+                    }
+                };
+                worker.execute();
+	      	}
+	      }
+	   });
+        
         mainUI.getTree().addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) { 
@@ -880,8 +983,71 @@ public class MinetClient {
             }
         });
         
+        mainUI.getGroupButton().addActionListener(new ActionListener() 
+        {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				groupchatUI.setVisible(true);
+			}
+		});
         
         mainUI.setVisible(true); 
+    }
+    
+    protected void initGroupChatUI(User user)
+    {
+    	if (groupchatUI != null) {
+    		groupchatUI.dispose();
+    	}
+    	groupchatUI = new GroupChatUI(user);       
+        
+    	groupchatUI.getSendButton().addActionListener(new ActionListener()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                String text = groupchatUI.getInputText();
+                final SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+                    @Override
+                    protected String doInBackground() throws Exception
+                    {
+                        sendBoardCastMessage(text);
+                        return text;
+                    }      
+                    @Override
+                    protected void done() {
+                    	groupchatUI.getInputArea().setText("");
+                    }
+                };
+                worker.execute();
+            }
+        });
+        
+    	groupchatUI.getTree().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) { 
+                if (e.getClickCount() == 2) {
+                    JTree tree = (JTree) e.getSource();
+                    int rowLocation = tree.getRowForLocation(e.getX(), e.getY());
+                    TreePath treepath = tree.getPathForRow(rowLocation);
+                    if (treepath != null) {
+                        DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) treepath.getLastPathComponent();
+                        if (treeNode.getUserObject() instanceof User) {
+                            User user = (User)treeNode.getUserObject();
+                            if (user.getId() != null) {
+                                showChatUI(user);
+                            }
+                        }
+                    }
+                }
+                
+            }
+        });
+        
+        
+    	groupchatUI.setVisible(false); 
     }
     
     protected void clearOtherUIs() {
@@ -967,42 +1133,40 @@ public class MinetClient {
 			}
         });
         
-        //SendImage
         chatUI.getImageButton().addActionListener(new ActionListener()
         {
 
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				if (fileInfo.getStat() != FileInfo.FREE) {
-					ImageIcon tImg = null;
+	        @Override
+	        public void actionPerformed(ActionEvent arg0) {
+		        if (fileInfo.getStat() != FileInfo.FREE) {
+		          ImageIcon tImg = null;
+		                    int idx = me.getIconIndex();
+		                    if (idx >= 0 && idx < smallIcons.length) {
+		                        tImg = smallIcons[idx];
+		                    }        
+		          chatUI.insertMessage(me.getName() + "(" + me.getId() + ")", "已经有其他图片正在传输 ", tImg , true);
+		          return;
+		        }
+		        
+		        ImageIcon tImg = null;
 		                int idx = me.getIconIndex();
 		                if (idx >= 0 && idx < smallIcons.length) {
 		                    tImg = smallIcons[idx];
-		                }        
-					chatUI.insertMessage(me.getName() + "(" + me.getId() + ")", "已经有其他图片正在传输 ", tImg , true);
-					return;
-				}
-				
-				ImageIcon tImg = null;
-                int idx = me.getIconIndex();
-                if (idx >= 0 && idx < smallIcons.length) {
-                    tImg = smallIcons[idx];
-                }
-				
-				JFileChooser jfc=new JFileChooser(); 
-                FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                    "请选择图片文件", "png", "jpg");//文件名过滤器
-                jfc.setFileFilter(filter);//给文件选择器加入文件过滤器
-                
-				int selected = jfc.showOpenDialog(null);
-				if (selected == JFileChooser.APPROVE_OPTION) {
-    				File file=jfc.getSelectedFile();
-    				chatUI.insertImg(me.getName() + " (" + me.getId() + ")", file.getAbsolutePath(), tImg, true);
-    				prepareToSendImg(file, chatUI);
-				}
-			}
+		                }
+		        
+		        JFileChooser jfc=new JFileChooser(); 
+		                FileNameExtensionFilter filter = new FileNameExtensionFilter(
+		                    "请选择图片文件", "png", "jpg");//文件名过滤器
+		                jfc.setFileFilter(filter);//给文件选择器加入文件过滤器
+		                
+		        int selected = jfc.showOpenDialog(null);
+		        if (selected == JFileChooser.APPROVE_OPTION) {
+		            File file=jfc.getSelectedFile();
+		            chatUI.insertImg(me.getName() + " (" + me.getId() + ")", file.getAbsolutePath(), tImg, true);
+		            prepareToSendImg(file, chatUI);
+		        }
+	       }
         });
-        
         return chatUI;
     }
     
@@ -1046,43 +1210,43 @@ public class MinetClient {
     }
     
     protected void prepareToSendImg(File file, UserChatUI chatUI) {
-	   	if (file == null ||!file.exists()||file.length() > GlobalTypeDefine.MAX_FILE_SIZE ) {
-	   		 ImageIcon tImg = null;
-	         int idx = me.getIconIndex();
-	         if (idx >= 0 && idx < smallIcons.length) {
-	        	 tImg = smallIcons[idx];
-	         }        
-	         chatUI.insertMessage(me.getName(), "图片不存在或者图片过大！", tImg , true);
-			 return;
-	   	}
-   	 	System.out.println("文件:"+file.getAbsolutePath());  
-        System.out.println(file.length());
-        ByteBuffer outBuffer = ByteBuffer.allocate(2048);
-        DataPackage dp = new DataPackage();
-        dp.setType(GlobalTypeDefine.TYPE_IMG_SEND_REQUEST);
-        dp.setSrcId(me.getId());
-        dp.setDstId(file.getName());
-        dp.setMessageString(me.getName());
-        dp.setDataIndex((int) file.length());
-        MessageHandler.writeDataPackage(dp, outBuffer);
-        InetSocketAddress address = null;
-        if (userIDMap.containsKey(chatUI.getId())) {
-            String userAddress = userIDMap.get(chatUI.getId()).user.getAddress();
-            address = MessageHandler.StringtoAddress(userAddress);
-        }
-        if (address != null && !address.equals("Unknown")) {
-            try
-            {
-                datagramChannel.send(outBuffer, address);
-                fileInfo.setReadMode(file, me.getId(), chatUI.getId(), address);
-            } catch (IOException e)
-            {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }
-        
-   }
+    	 if (file == null ||!file.exists()||file.length() > GlobalTypeDefine.MAX_FILE_SIZE ) {
+    	    ImageIcon tImg = null;
+    	      int idx = me.getIconIndex();
+    	      if (idx >= 0 && idx < smallIcons.length) {
+    	        tImg = smallIcons[idx];
+    	      }        
+    	      chatUI.insertMessage(me.getName(), "图片不存在或者图片过大！", tImg , true);
+    	  return;
+    	 }
+    	 System.out.println("文件:"+file.getAbsolutePath());  
+    	 System.out.println(file.length());
+    	 ByteBuffer outBuffer = ByteBuffer.allocate(2048);
+    	 DataPackage dp = new DataPackage();
+    	 dp.setType(GlobalTypeDefine.TYPE_IMG_SEND_REQUEST);
+    	 dp.setSrcId(me.getId());
+    	 dp.setDstId(file.getName());
+    	 dp.setMessageString(me.getName());
+    	 dp.setDataIndex((int) file.length());
+    	 MessageHandler.writeDataPackage(dp, outBuffer);
+    	 InetSocketAddress address = null;
+    	 if (userIDMap.containsKey(chatUI.getId())) {
+    	       String userAddress = userIDMap.get(chatUI.getId()).user.getAddress();
+    	       address = MessageHandler.StringtoAddress(userAddress);
+    	 }
+    	 if (address != null && !address.equals("Unknown")) {
+    	       try
+    	       {
+    	           datagramChannel.send(outBuffer, address);
+    	           fileInfo.setReadMode(file, me.getId(), chatUI.getId(), address);
+    	       } catch (IOException e)
+    	       {
+    	           // TODO Auto-generated catch block
+    	           e.printStackTrace();
+    	       }
+    	 }
+    	   
+    }
     
     protected UserChatUI getChatUI(User user) {
         if (!userUIs.containsKey(user.getId())) {
@@ -1305,6 +1469,16 @@ public class MinetClient {
     public void setMainUI(MainUI mainUI)
     {
         this.mainUI = mainUI;
+    }
+    
+    public GroupChatUI getGroupChatUI()
+    {
+        return groupchatUI;
+    }
+
+    public void setGroupChatUI(GroupChatUI groupchatUI)
+    {
+        this.groupchatUI = groupchatUI;
     }
 
     public RegisterUI getRegisterUI()

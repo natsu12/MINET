@@ -30,7 +30,6 @@ public class FileInfo {
 	private int stat;
 	private BufferedOutputStream out;
 	private BufferedInputStream in;
-
 	private String type;
 	
 	private DataPackage lastDataPackage;
@@ -93,13 +92,14 @@ public class FileInfo {
 		this.progSize = 0;
 		this.progIndex = 0;
 		this.address = address;
+		this.type = rec_type;
 		try {
 			out = new BufferedOutputStream(new FileOutputStream(file));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			reset();
 		}
-		this.type = rec_type;
+		
 	}
 	
 	public int appendPackage(DataPackage dp) {
@@ -191,7 +191,6 @@ public class FileInfo {
 		this.progSize = 0;
 		this.progIndex = 0;
 		this.lastActive = System.currentTimeMillis();
-		
 		this.type = "";
 	}
 	
@@ -228,6 +227,10 @@ public class FileInfo {
 		return stat;
 	}
 	
+	public String getFileType() {
+		return type;
+	}
+	
 	protected void finalize() {
 		reset();
 	}
@@ -237,7 +240,4 @@ public class FileInfo {
 		return t > TIMED_OUT;
 	}
 	
-	public String getFileType() {
-		return type;
-	}
 }

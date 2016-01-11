@@ -289,7 +289,7 @@ public class UserChatUI extends JFrame {
             e.printStackTrace();
         }
     }
-	
+    
     public void insertImg(String name, String path, ImageIcon tImg, boolean self) {
         javax.swing.text.SimpleAttributeSet attributeSet=new javax.swing.text.SimpleAttributeSet();
         
@@ -328,8 +328,7 @@ public class UserChatUI extends JFrame {
             e.printStackTrace();
         }
     }
-    
-    
+	
 	public UserChatUI updateInfo(User user) {
 	    label.setText(user.getAddress());
 	    return this;
