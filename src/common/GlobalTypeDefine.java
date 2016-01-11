@@ -42,4 +42,7 @@ public class GlobalTypeDefine {
 	
 	public static final int MAX_DATA_LENGTH = 256 * 128;
 	public static final int MAX_FILE_SIZE = 50000000;
+
+
+	public static final int TYPE_IMG_SEND_REQUEST = 112;
 }

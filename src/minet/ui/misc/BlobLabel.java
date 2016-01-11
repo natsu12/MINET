@@ -1,9 +1,19 @@
 package minet.ui.misc;
 
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Path;
 
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 import javax.swing.border.LineBorder;
@@ -16,7 +26,7 @@ public class BlobLabel extends JLabel
 	 * 
 	 */
 	private static final long serialVersionUID = -3808214299050510320L;
-
+    
 	public BlobLabel() {
         super();
         setVerticalAlignment(SwingConstants.TOP);
@@ -63,7 +73,50 @@ public class BlobLabel extends JLabel
         builder.append("</html>");
         setLayout(null);
         setText(builder.toString());
-        setSize(widthLimit,Math.max(50, totalHeight));
+        setSize(widthLimit, totalHeight);
         this.setIgnoreRepaint(true);
+    }
+    
+    public void applyImg(String path, boolean self) {
+
+        int widthLimit = 250;
+       
+        
+        JLabel jlblImageViewer = new JLabel();
+        ImageIcon ico=new ImageIcon(path);
+        
+        int IconWidth = ico.getIconWidth();
+        int IconHeight = ico.getIconHeight();
+        
+        while (IconWidth > widthLimit) {
+        	IconHeight *= 0.9;
+        	IconWidth *= 0.9;
+        }
+        Image temp=ico.getImage().getScaledInstance(IconWidth, IconHeight, ico.getImage().SCALE_DEFAULT);
+        
+        jlblImageViewer.setIcon(new ImageIcon(temp));
+        
+        if (self) {
+        	jlblImageViewer.setBounds(10, 10, IconWidth, IconHeight);
+        } else {
+        	jlblImageViewer.setBounds(50, 10, IconWidth, IconHeight);
+        }
+        
+        add(jlblImageViewer);
+        setLayout(null);
+        
+        setPreferredSize(new Dimension(widthLimit, IconHeight + 20));
+        
+        this.setIgnoreRepaint(true);
+    }
+    
+    public ImageIcon getImageIcon(String path, int width, int height) {
+    	  if (width == 0 || height == 0) {
+    	   return new ImageIcon(this.getClass().getResource(path));
+    	  }
+    	  ImageIcon icon = new ImageIcon(this.getClass().getResource(path));
+    	  icon.setImage(icon.getImage().getScaledInstance(width, height,
+    	    Image.SCALE_DEFAULT));
+    	  return icon;
     }
 }

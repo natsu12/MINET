@@ -31,6 +31,8 @@ public class FileInfo {
 	private BufferedOutputStream out;
 	private BufferedInputStream in;
 
+	private String type;
+	
 	private DataPackage lastDataPackage;
 	private InetSocketAddress address;
 	private long lastActive;
@@ -73,7 +75,7 @@ public class FileInfo {
 		
 	}
 	
-	public void setWriteMode(File file, long length, String srcID, String dstID, InetSocketAddress address) {
+	public void setWriteMode(File file, long length, String srcID, String dstID, InetSocketAddress address, String rec_type) {
 		this.lastActive = System.currentTimeMillis();
 		if(!file.exists()) {
 			try {
@@ -97,7 +99,7 @@ public class FileInfo {
 			e.printStackTrace();
 			reset();
 		}
-		
+		this.type = rec_type;
 	}
 	
 	public int appendPackage(DataPackage dp) {
@@ -189,6 +191,8 @@ public class FileInfo {
 		this.progSize = 0;
 		this.progIndex = 0;
 		this.lastActive = System.currentTimeMillis();
+		
+		this.type = "";
 	}
 	
 
@@ -233,4 +237,7 @@ public class FileInfo {
 		return t > TIMED_OUT;
 	}
 	
+	public String getFileType() {
+		return type;
+	}
 }

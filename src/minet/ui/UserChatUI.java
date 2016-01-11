@@ -290,6 +290,46 @@ public class UserChatUI extends JFrame {
         }
     }
 	
+    public void insertImg(String name, String path, ImageIcon tImg, boolean self) {
+        javax.swing.text.SimpleAttributeSet attributeSet=new javax.swing.text.SimpleAttributeSet();
+        
+        StyledDocument doc = chatPane.getStyledDocument();  
+        
+        if (indentSpace == null) {
+            indentSpace = "";
+            int wLimit = 45;
+            FontMetrics fontMetrics = getFontMetrics(doc.getFont(attributeSet));
+            while (fontMetrics.stringWidth(indentSpace) < wLimit) {
+            	indentSpace += ' ';
+            }
+        }
+        
+        
+        try
+        {
+            doc.insertString(doc.getLength(), "\n" + MessageHandler.getTimeString(name) + "\n", attributeSet);
+            BlobLabel blb = new BlobLabel();
+            
+            blb.setIcon(tImg);
+            if (self) {
+            	blb.applyImg(path, true);
+                doc.insertString(doc.getLength(), "     ", attributeSet);
+                blb.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT);
+            } else {
+            	blb.applyImg(path, false);
+                blb.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
+            }
+            chatPane.setCaretPosition(doc.getLength());
+            chatPane.insertComponent(blb);
+            doc.insertString(doc.getLength(), "\n\n", attributeSet);
+        } catch (BadLocationException e)
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+    
+    
 	public UserChatUI updateInfo(User user) {
 	    label.setText(user.getAddress());
 	    return this;

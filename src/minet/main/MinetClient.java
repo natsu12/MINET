@@ -1,8 +1,10 @@
 package minet.main;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +16,7 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.text.Normalizer.Form;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,9 +25,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTree;
 import javax.swing.SwingWorker;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreePath;
 
@@ -147,7 +152,28 @@ public class MinetClient {
         	else if (fileInfo.getStat() == FileInfo.DONE) {
         	    tempTimeCount = 5;
         		String s = "文件 " + fileInfo.getFileName() + " 传输完毕";
+        		String id = fileInfo.getDstID();
         		mainUI.getHelloTipsLabel().setText(s);
+        		
+        		if (fileInfo.getFileType() == "image") {
+        			String path = System.getProperty("user.dir") + "/images/" + fileInfo.getFileName();
+            		UserInfo userInfo = userIDMap.get(id);
+                    String name = "UnKnown";
+                    if (userInfo != null) {
+                        name = userInfo.user.getName()  + " (" + id + ")";;
+                    } else {
+                        return;
+                    }
+                    UserChatUI chatUI = getChatUI(userInfo.user);
+                    ImageIcon tImg = null;
+                    int idx = userInfo.user.getIconIndex();
+                    if (idx >= 0 && idx < smallIcons.length) {
+                        tImg = smallIcons[idx];
+                    }
+                    chatUI.insertImg(name, path, tImg, false);
+                    chatUI.setVisible(true);
+        		}
+        		
         		fileInfo.reset();
         	}
         	else if (fileInfo.getStat() == FileInfo.FREE) {
@@ -309,6 +335,14 @@ public class MinetClient {
                                         refuseSendFile(dataPackage.getSrcId(), "对方正忙");
                                     }
                                 	break;
+                                case GlobalTypeDefine.TYPE_IMG_SEND_REQUEST:
+                                	if (fileInfo.getStat() == FileInfo.FREE) {
+	                                	fileInfo.setQuerying();
+	                                	viewImgRequest(dataPackage);
+                                	} else {
+                                        refuseSendFile(dataPackage.getSrcId(), "对方正忙");
+                                    }
+                                	break;
                                 case GlobalTypeDefine.TYPE_FILE_SEND_REFUSED:
                                     String id2 = dataPackage.getSrcId();
                                     String text2 = dataPackage.getMessageString();
@@ -407,6 +441,7 @@ public class MinetClient {
                 	 JFileChooser jfc=new JFileChooser();  
                      jfc.setFileSelectionMode(JFileChooser.FILES_ONLY); 
                      File file = new File(dp.getDstId());
+                     
                      jfc.setSelectedFile(file);
                      int flag = jfc.showSaveDialog(new JLabel());
                      file = null;
@@ -420,7 +455,7 @@ public class MinetClient {
     	                 }
     	                 if (address != null && !address.equals("Unknown"))  {
     	                	 System.out.println("Start write");
-    	                	 fileInfo.setWriteMode(file, dp.getDataIndex(), me.getId(), id, address);
+    	                	 fileInfo.setWriteMode(file, dp.getDataIndex(), me.getId(), id, address, "file");
     	                 }
                      } else {
                     	 final SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
@@ -462,6 +497,38 @@ public class MinetClient {
     	fo.setVisible(true);
     }
     
+    private void viewImgRequest(DataPackage dp) {
+        String id = dp.getSrcId();
+        String path = System.getProperty("user.dir") + "/images/" + dp.getDstId();
+        synchronized(fileInfo) {
+            if (fileInfo.getStat() != FileInfo.QUERYING) {
+                final SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
+                    @Override
+                    protected Integer doInBackground() throws Exception
+                    {
+                        System.out.println(fileInfo.getStat());
+                        refuseSendFile(id, "已经有其他文件在传输中或者请求超时");
+                        fileInfo.reset();
+                        System.out.println(fileInfo.getStat());
+                        return 0;
+                    }                                 
+                };
+                worker.execute();
+                return;
+            }
+                
+            File file = new File(path);
+            InetSocketAddress address = null;
+            if (userIDMap.containsKey(id)) {
+                String userAddress = userIDMap.get(id).user.getAddress();
+                address = MessageHandler.StringtoAddress(userAddress);
+            }
+            if (address != null && !address.equals("Unknown"))  {
+              System.out.println("Start write");
+              fileInfo.setWriteMode(file, dp.getDataIndex(), me.getId(), id, address, "image");
+            }
+        }
+    }
     
     
     private void requestFileData() {
@@ -900,6 +967,41 @@ public class MinetClient {
 			}
         });
         
+        //SendImage
+        chatUI.getImageButton().addActionListener(new ActionListener()
+        {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (fileInfo.getStat() != FileInfo.FREE) {
+					ImageIcon tImg = null;
+		                int idx = me.getIconIndex();
+		                if (idx >= 0 && idx < smallIcons.length) {
+		                    tImg = smallIcons[idx];
+		                }        
+					chatUI.insertMessage(me.getName() + "(" + me.getId() + ")", "已经有其他图片正在传输 ", tImg , true);
+					return;
+				}
+				
+				ImageIcon tImg = null;
+                int idx = me.getIconIndex();
+                if (idx >= 0 && idx < smallIcons.length) {
+                    tImg = smallIcons[idx];
+                }
+				
+				JFileChooser jfc=new JFileChooser(); 
+                FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                    "请选择图片文件", "png", "jpg");//文件名过滤器
+                jfc.setFileFilter(filter);//给文件选择器加入文件过滤器
+                
+				int selected = jfc.showOpenDialog(null);
+				if (selected == JFileChooser.APPROVE_OPTION) {
+    				File file=jfc.getSelectedFile();
+    				chatUI.insertImg(me.getName() + " (" + me.getId() + ")", file.getAbsolutePath(), tImg, true);
+    				prepareToSendImg(file, chatUI);
+				}
+			}
+        });
         
         return chatUI;
     }
@@ -942,7 +1044,46 @@ public class MinetClient {
          }
          
     }
-       
+    
+    protected void prepareToSendImg(File file, UserChatUI chatUI) {
+	   	if (file == null ||!file.exists()||file.length() > GlobalTypeDefine.MAX_FILE_SIZE ) {
+	   		 ImageIcon tImg = null;
+	         int idx = me.getIconIndex();
+	         if (idx >= 0 && idx < smallIcons.length) {
+	        	 tImg = smallIcons[idx];
+	         }        
+	         chatUI.insertMessage(me.getName(), "图片不存在或者图片过大！", tImg , true);
+			 return;
+	   	}
+   	 	System.out.println("文件:"+file.getAbsolutePath());  
+        System.out.println(file.length());
+        ByteBuffer outBuffer = ByteBuffer.allocate(2048);
+        DataPackage dp = new DataPackage();
+        dp.setType(GlobalTypeDefine.TYPE_IMG_SEND_REQUEST);
+        dp.setSrcId(me.getId());
+        dp.setDstId(file.getName());
+        dp.setMessageString(me.getName());
+        dp.setDataIndex((int) file.length());
+        MessageHandler.writeDataPackage(dp, outBuffer);
+        InetSocketAddress address = null;
+        if (userIDMap.containsKey(chatUI.getId())) {
+            String userAddress = userIDMap.get(chatUI.getId()).user.getAddress();
+            address = MessageHandler.StringtoAddress(userAddress);
+        }
+        if (address != null && !address.equals("Unknown")) {
+            try
+            {
+                datagramChannel.send(outBuffer, address);
+                fileInfo.setReadMode(file, me.getId(), chatUI.getId(), address);
+            } catch (IOException e)
+            {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        
+   }
+    
     protected UserChatUI getChatUI(User user) {
         if (!userUIs.containsKey(user.getId())) {
             userUIs.put(user.getId(), initAndReturnChatUI(user));
